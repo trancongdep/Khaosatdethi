@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VDC Survey - Offline Sync v1.2</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 p-4">
+    <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-xl border-t-8 border-blue-700">
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-xl font-bold text-slate-800">KHẢO SÁT VSIP [OFFLINE MODE]</h1>
+            <span id="syncStatus" class="text-xs font-bold px-2 py-1 rounded bg-green-100 text-green-700">Online</span>
+        </div>
+
+        <div id="offlineCount" class="hidden mb-4 p-2 bg-orange-100 text-orange-700 text-sm rounded-lg text-center font-bold">
+            Đang lưu trữ offline: <span id="pendingNum">0</span> bản ghi
+        </div>
+
+        <form id="surveyForm" class="space-y-4">
+            <select id="category" class="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500">
+                [span_0](start_span)<option>Trạm biến áp 110/22kV (M&E)[span_0](end_span)</option>
+                [span_1](start_span)<option>Hệ thống SCADA, OCC[span_1](end_span)</option>
+                [span_2](start_span)<option>Nhà máy xử lý nước thải[span_2](end_span)</option>
+                [span_3](start_span)<option>Hạ tầng & PCCC nhà xưởng[span_3](end_span)</option>
+            </select>
+
+            <textarea id="notes" class="w-full p-3 border rounded-lg h-28" placeholder="Ghi chú mối nguy/tình huống thực tế..."></textarea>
+
+            <div class="border-2 border-dashed border-gray-300 p-4 rounded-lg text-center">
+                <input type="file" id="fileInput" accept="image/*" class="hidden">
+                <button type="button" onclick="document.getElementById('fileInput').click()" class="bg-gray-200 px-4 py-2 rounded-md text-sm font-semibold">Chụp ảnh / Chọn tệp</button>
+                <p id="fileName" class="text-xs text-gray-500 mt-2 italic">Chưa có tệp nào được chọn</p>
+            </div>
+
+            <button type="button" onclick="handleFormSubmit()" id="mainBtn" class="w-full bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-800 transition">
+                LƯU DỮ LIỆU KHẢO SÁT
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const SCRIPT_URL = 'YOUR_APPSCRIPT_WEB_APP_URL';
+        let isOnline = navigator.onLine;
+
+        // Cập nhật trạng thái mạng
+        window.addEventListener('online', () => { updateStatus(true); syncData(); });
+        window.addEventListener('offline', () => updateStatus(false));
+
+        function updateStatus(online) {
+            isOnline = online;
+            const statusEl = document.getElementById('syncStatus');
+            statusEl.innerText = online ? 'Online' : 'Offline';
+            statusEl.className = online ? 'text-xs font-bold px-2 py-1 rounded bg-green-100 text-green-700' : 'text-xs font-bold px-2 py-1 rounded bg-red-100 text-red-700';
+            if(online) syncData();
+        }
+
+        document.getElementById('fileInput').onchange = e => {
+            document.getElementById('fileName').innerText = e.target.files[0]?.name || "";
+        };
+
+        async function handleFormSubmit() {
+            const file = document.getElementById('fileInput').files[0];
+            const category = document.getElementById('category').value;
+            const notes = document.getElementById('notes').value;
+
+            if (!file && !notes) return alert("Vui lòng nhập thông tin!");
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const item = {
+                    id: Date.now(),
+                    category,
+                    notes,
+                    filename: file ? file.name : "no-file",
+                    mimeType: file ? file.type : "",
+                    data: file ? e.target.result.split(',')[1] : null
+                };
+
+                saveToLocal(item);
+                document.getElementById('surveyForm').reset();
+                document.getElementById('fileName').innerText = "";
+                if (isOnline) syncData();
+            };
+            if (file) reader.readAsDataURL(file);
+            else reader.onload({ target: { result: "," } });
+        }
+
+        function saveToLocal(item) {
+            let data = JSON.parse(localStorage.getItem('vdc_survey') || '[]');
+            data.push(item);
+            localStorage.setItem('vdc_survey', JSON.stringify(data));
+            updatePendingCount();
+        }
+
+        function updatePendingCount() {
+            const data = JSON.parse(localStorage.getItem('vdc_survey') || '[]');
+            const countEl = document.getElementById('offlineCount');
+            const numEl = document.getElementById('pendingNum');
+            if (data.length > 0) {
+                countEl.classList.remove('hidden');
+                numEl.innerText = data.length;
+            } else {
+                countEl.classList.add('hidden');
+            }
+        }
+
+        async function syncData() {
+            if (!isOnline) return;
+            let data = JSON.parse(localStorage.getItem('vdc_survey') || '[]');
+            if (data.length === 0) return;
+
+            const btn = document.getElementById('mainBtn');
+            btn.disabled = true;
+            btn.innerText = "ĐANG ĐỒNG BỘ...";
+
+            for (let i = 0; i < data.length; i++) {
+                try {
+                    const response = await fetch(SCRIPT_URL, {
+                        method: 'POST',
+                        body: JSON.stringify(data[i])
+                    });
+                    if (response.ok) {
+                        // Xóa sạch sau khi gửi thành công
+                        data.splice(i, 1);
+                        localStorage.setItem('vdc_survey', JSON.stringify(data));
+                        i--; 
+                    }
+                } catch (e) { console.error("Sync lỗi:", e); }
+                updatePendingCount();
+            }
+            
+            btn.disabled = false;
+            btn.innerText = "LƯU DỮ LIỆU KHẢO SÁT";
+        }
+        
+        updatePendingCount();
+    </script>
+</body>
+</html>
