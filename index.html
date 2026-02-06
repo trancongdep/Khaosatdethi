@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VDC - Hệ thống Khảo sát & Giám sát An toàn (v1.3)</title>
+    <title>VDC Survey Pro v1.4</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .checklist-item input:checked + span { text-decoration: line-through; color: #9ca3af; }
         @media (min-width: 1024px) { .mobile-only { display: none; } .desktop-only { display: block; } }
         @media (max-width: 1023px) { .mobile-only { display: block; } .desktop-only { display: none; } }
+        .tab-active { border-bottom: 3px solid #1d4ed8; color: #1d4ed8; font-weight: bold; }
     </style>
 </head>
 <body class="bg-slate-100 min-h-screen">
@@ -19,217 +19,175 @@
             <header class="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl shadow-sm">
                 <div>
                     <h1 class="text-2xl font-bold text-slate-800">VDC Project Dashboard</h1>
-                    <p class="text-slate-500">Dự án: Xây dựng bộ câu hỏi ATĐ - VSIP (NĐ 62/2025)</p>
+                    <p class="text-slate-500">Khảo sát An toàn điện VSIP (NĐ 62/2025)</p>
                 </div>
                 <div class="text-right">
-                    <span class="text-xs font-mono bg-blue-100 text-blue-600 px-3 py-1 rounded-full">Version 1.3</span>
-                    <p id="pc-sync-status" class="text-sm font-bold text-green-600 mt-2">● Hệ thống sẵn sàng</p>
+                    <span class="text-xs font-mono bg-blue-100 text-blue-600 px-3 py-1 rounded-full">v1.4</span>
                 </div>
             </header>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-blue-500">
-                    <p class="text-slate-500 text-sm font-semibold uppercase">Tiến độ khảo sát</p>
-                    <h3 class="text-3xl font-bold text-slate-800 mt-2" id="completion-rate">0%</h3>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-green-500">
-                    <p class="text-slate-500 text-sm font-semibold uppercase">Dữ liệu đã thu thập</p>
-                    <h3 class="text-3xl font-bold text-slate-800 mt-2" id="total-records">0</h3>
-                </div>
-                <div class="bg-white p-6 rounded-2xl shadow-sm border-b-4 border-orange-500">
-                    <p class="text-slate-500 text-sm font-semibold uppercase">Đang chờ đồng bộ</p>
-                    <h3 class="text-3xl font-bold text-slate-800 mt-2" id="pc-pending-count">0</h3>
-                </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-2xl shadow-sm">
-                <h2 class="text-lg font-bold mb-4">Chi tiết các hạng mục khảo sát thực tế</h2>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="border-b text-slate-400 text-sm">
-                                <th class="pb-3 font-medium">HẠNG MỤC (PHẠM VI)</th>
-                                <th class="pb-3 font-medium text-center">TRẠNG THÁI</th>
-                                <th class="pb-3 font-medium">GHI CHÚ GẦN NHẤT</th>
-                            </tr>
-                        </thead>
-                        <tbody id="dashboard-table" class="text-sm text-slate-700">
-                            </tbody>
-                    </table>
-                </div>
+            <div id="pc-content">
+                <p class="text-center text-slate-400">Vui lòng xem trên thiết bị di động để thực hiện khảo sát hiện trường.</p>
             </div>
         </div>
     </div>
 
-    <div class="mobile-only p-4">
-        <div class="bg-white rounded-2xl shadow-xl overflow-hidden">
-            <div class="bg-blue-700 p-4 text-white">
-                <h1 class="text-lg font-bold">Khảo sát Hiện trường</h1>
-                <p class="text-xs opacity-80">Ghi nhận dữ liệu offline & đồng bộ tự động</p>
+    <div class="mobile-only">
+        <div class="sticky top-0 z-10 bg-blue-700 text-white p-4 shadow-md">
+            <div class="flex justify-between items-center">
+                <h1 class="font-bold">VDC SURVEY MOBILE</h1>
+                <span id="syncStatus" class="text-[10px] bg-green-500 px-2 py-0.5 rounded">Online</span>
             </div>
+        </div>
 
-            <div id="sync-notice" class="hidden bg-orange-100 p-2 text-center text-xs font-bold text-orange-700">
-                Chờ mạng để đồng bộ <span id="mobile-pending-num">0</span> dữ liệu
+        <div class="flex bg-white border-b sticky top-[56px] z-10">
+            <button onclick="switchTab('survey')" id="tab-survey" class="flex-1 py-3 text-sm tab-active">KHẢO SÁT</button>
+            <button onclick="switchTab('history')" id="tab-history" class="flex-1 py-3 text-sm text-slate-500">DỮ LIỆU ĐÃ LƯU</button>
+        </div>
+
+        <div id="survey-section" class="p-4 space-y-4">
+            <div class="bg-white rounded-xl shadow-sm p-4 border border-slate-200">
+                <form id="surveyForm" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Hạng mục:</label>
+                        <select id="category" onchange="updateChecklist()" class="w-full p-3 border rounded-xl bg-slate-50 outline-none">
+                            <option value="a">Trạm 110/22kV (M&E)</option>
+                            <option value="b">Trạm 22/0.4kV (M&E)</option>
+                            <option value="d">SCADA & OCC</option>
+                            <option value="f">Xử lý nước thải (W&S)</option>
+                            <option value="i">Thi công hạ tầng (CON)</option>
+                        </select>
+                    </div>
+
+                    <div class="bg-blue-50 p-4 rounded-xl">
+                        <p class="text-xs font-bold text-blue-700 uppercase mb-3 italic">Checklist đảm bảo đầy đủ:</p>
+                        <div id="checklist-container" class="space-y-2 text-sm"></div>
+                    </div>
+
+                    <textarea id="notes" class="w-full p-3 border rounded-xl bg-slate-50 h-24" placeholder="Mô tả mối nguy/tình huống..."></textarea>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex flex-col items-center justify-center p-3 border-2 border-dashed border-blue-200 rounded-xl bg-blue-50 cursor-pointer">
+                            <svg class="w-6 h-6 text-blue-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <span class="text-[10px] font-bold text-blue-700">CHỤP ẢNH</span>
+                            <input type="file" id="camInput" accept="image/*" capture="environment" class="hidden" onchange="previewFile(this)">
+                        </label>
+                        <label class="flex flex-col items-center justify-center p-3 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50 cursor-pointer">
+                            <svg class="w-6 h-6 text-slate-600 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <span class="text-[10px] font-bold text-slate-700">CHỌN THƯ VIỆN</span>
+                            <input type="file" id="libInput" accept="image/*" class="hidden" onchange="previewFile(this)">
+                        </label>
+                    </div>
+                    <p id="fileStatus" class="text-center text-[10px] text-blue-600 font-bold italic"></p>
+
+                    <button type="button" onclick="handleSave()" id="saveBtn" class="w-full bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg">LƯU DỮ LIỆU</button>
+                </form>
             </div>
+        </div>
 
-            <form id="surveyForm" class="p-4 space-y-4">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Chọn hạng mục:</label>
-                    <select id="category" onchange="updateChecklist()" class="w-full p-3 border rounded-xl bg-slate-50 focus:ring-2 focus:ring-blue-500 outline-none">
-                        <option value="a">Trạm 110/22kV (M&E)</option>
-                        <option value="b">Trạm 22/0.4kV (M&E)</option>
-                        <option value="d">SCADA & OCC</option>
-                        <option value="f">Xử lý nước thải (W&S)</option>
-                        <option value="h">PCCC & Hạ tầng xưởng</option>
-                        <option value="i">Thi công hạ tầng (CON)</option>
-                    </select>
+        <div id="history-section" class="hidden p-4">
+            <div id="history-list" class="space-y-3">
                 </div>
-
-                <div class="bg-blue-50 p-4 rounded-xl">
-                    <p class="text-xs font-bold text-blue-700 uppercase mb-3">Checklist bắt buộc:</p>
-                    <div id="checklist-container" class="space-y-2 text-sm">
-                        </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Ghi chú & Mối nguy:</label>
-                    <textarea id="notes" class="w-full p-3 border rounded-xl bg-slate-50 h-24" placeholder="Nhập tình huống thực tế..."></textarea>
-                </div>
-
-                <div class="flex items-center space-x-2 bg-slate-50 p-3 rounded-xl border-2 border-dashed border-slate-200">
-                    <input type="file" id="fileInput" accept="image/*" class="hidden">
-                    <button type="button" onclick="document.getElementById('fileInput').click()" class="bg-blue-100 text-blue-700 p-2 rounded-lg text-sm font-bold w-full">CHỤP ẢNH HIỆN TRƯỜNG</button>
-                </div>
-                <p id="fileName" class="text-center text-[10px] text-slate-400 italic mt-1"></p>
-
-                <button type="button" onclick="handleSave()" id="saveBtn" class="w-full bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg active:scale-95 transition">
-                    LƯU DỮ LIỆU KHẢO SÁT
-                </button>
-            </form>
         </div>
     </div>
 
     <script>
-        const SCRIPT_URL = 'YOUR_APPSCRIPT_WEB_APP_URL';
-        const firebaseConfig = { apiKey: "AIzaSyCzWjfcD5Dgq7V-i2izb9tKLR6QM6qWPQo", authDomain: "tavietnam-78ae8.firebaseapp.com", projectId: "tavietnam-78ae8", storageBucket: "tavietnam-78ae8.firebasestorage.app", messagingSenderId: "670121705534", appId: "1:670121705534:web:1027ad98550573ad37116f" };
-
         const checklists = {
-            a: ["Kiểm tra nối đất trạm", "Kiểm tra rò rỉ dầu máy biến áp", "Kiểm tra tủ điều khiển MK", "Kiểm tra hành lang an toàn"],
-            b: ["Kiểm tra khóa liên động", "Khoảng cách an toàn phóng điện", "Biển báo cảnh báo", "Kiểm tra rơ le bảo vệ"],
-            d: ["Hệ thống nguồn UPS", "Nhiệt độ phòng máy chủ", "Trạng thái kết nối RTU", "Cáp tín hiệu chống nhiễu"],
-            f: ["An toàn tủ điện ngoài trời", "Tiếp địa động cơ bơm", "Quy trình vận hành khẩn cấp", "Bảo hộ lao động chuyên dụng"],
-            h: ["Nguồn điện bơm chữa cháy", "Đèn chiếu sáng khẩn cấp", "Tiếp địa chống sét hạ tầng", "Bình chữa cháy tại tủ điện"],
-            i: ["Nguồn điện tạm thi công", "Rào chắn & Biển báo", "Kiểm định thiết bị nâng", "Dây dẫn không kéo lê dưới đất"]
+            a: ["Kiểm tra nối đất trạm", "Kiểm tra rò rỉ dầu máy biến áp", "Kiểm tra tủ điều khiển MK", "Hành lang an toàn"],
+            b: ["Khóa liên động", "Khoảng cách an toàn", "Biển báo cảnh báo", "Rơ le bảo vệ"],
+            d: ["Nguồn UPS", "Nhiệt độ phòng server", "Trạng thái kết nối RTU"],
+            f: ["An toàn tủ điện ngoài trời", "Tiếp địa bơm", "BHLĐ chuyên dụng"],
+            i: ["Nguồn tạm thi công", "Rào chắn biển báo", "Dây dẫn điện"]
         };
+
+        let currentFile = null;
+
+        function switchTab(tab) {
+            document.getElementById('survey-section').classList.toggle('hidden', tab !== 'survey');
+            document.getElementById('history-section').classList.toggle('hidden', tab !== 'history');
+            document.getElementById('tab-survey').className = tab === 'survey' ? 'flex-1 py-3 text-sm tab-active' : 'flex-1 py-3 text-sm text-slate-500';
+            document.getElementById('tab-history').className = tab === 'history' ? 'flex-1 py-3 text-sm tab-active' : 'flex-1 py-3 text-sm text-slate-500';
+            if(tab === 'history') renderHistory();
+        }
 
         function updateChecklist() {
             const cat = document.getElementById('category').value;
-            const container = document.getElementById('checklist-container');
-            container.innerHTML = checklists[cat].map((item, i) => `
+            document.getElementById('checklist-container').innerHTML = checklists[cat].map(item => `
                 <label class="flex items-center space-x-3 checklist-item">
-                    <input type="checkbox" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500">
+                    <input type="checkbox" class="w-4 h-4 rounded text-blue-600 border-slate-300">
                     <span class="text-slate-700">${item}</span>
                 </label>
             `).join('');
         }
 
-        async function handleSave() {
-            const file = document.getElementById('fileInput').files[0];
-            const reader = new FileReader();
-            const btn = document.getElementById('saveBtn');
-            btn.disabled = true; btn.innerText = "ĐANG LƯU...";
+        function previewFile(input) {
+            if (input.files && input.files[0]) {
+                currentFile = input.files[0];
+                document.getElementById('fileStatus').innerText = "Đã chọn: " + currentFile.name;
+            }
+        }
 
-            reader.onload = async (e) => {
+        async function handleSave() {
+            const btn = document.getElementById('saveBtn');
+            const categoryText = document.getElementById('category').options[document.getElementById('category').selectedIndex].text;
+            const notes = document.getElementById('notes').value;
+
+            if (!notes && !currentFile) return alert("Vui lòng nhập ghi chú hoặc chụp ảnh!");
+
+            btn.disabled = true; btn.innerText = "ĐANG XỬ LÝ...";
+
+            const saveProcess = (base64Data = null) => {
                 const item = {
                     id: Date.now(),
-                    category: document.getElementById('category').options[document.getElementById('category').selectedIndex].text,
-                    notes: document.getElementById('notes').value,
-                    filename: file ? file.name : "no-image",
-                    data: file ? e.target.result.split(',')[1] : null,
-                    mimeType: file ? file.type : ""
+                    category: categoryText,
+                    notes: notes,
+                    timestamp: new Date().toLocaleString('vi-VN'),
+                    filename: currentFile ? currentFile.name : "no-image",
+                    data: base64Data
                 };
 
-                let localData = JSON.parse(localStorage.getItem('vdc_survey_v1.3') || '[]');
-                localData.push(item);
-                localStorage.setItem('vdc_survey_v1.3', JSON.stringify(localData));
+                let history = JSON.parse(localStorage.getItem('vdc_history_v1.4') || '[]');
+                history.unshift(item); // Thêm lên đầu
+                localStorage.setItem('vdc_history_v1.4', JSON.stringify(history));
 
+                // Reset form
                 document.getElementById('surveyForm').reset();
-                document.getElementById('fileName').innerText = "";
-                btn.disabled = false; btn.innerText = "LƯU DỮ LIỆU KHẢO SÁT";
-                updateUI();
-                if (navigator.onLine) syncData();
+                document.getElementById('fileStatus').innerText = "";
+                currentFile = null;
+                updateChecklist();
+                btn.disabled = false; btn.innerText = "LƯU DỮ LIỆU";
+                alert("Đã lưu bản ghi!");
             };
 
-            if (file) reader.readAsDataURL(file);
-            else reader.onload({ target: { result: "," } });
-        }
-
-        async function syncData() {
-            if (!navigator.onLine) return;
-            let data = JSON.parse(localStorage.getItem('vdc_survey_v1.3') || '[]');
-            if (data.length === 0) return;
-
-            for (let i = 0; i < data.length; i++) {
-                try {
-                    const res = await fetch(SCRIPT_URL, { method: 'POST', body: JSON.stringify(data[i]) });
-                    if (res.ok) {
-                        data.splice(i, 1);
-                        localStorage.setItem('vdc_survey_v1.3', JSON.stringify(data));
-                        i--;
-                    }
-                } catch (e) { console.warn("Sync error", e); }
-            }
-            updateUI();
-        }
-
-        function updateUI() {
-            const data = JSON.parse(localStorage.getItem('vdc_survey_v1.3') || '[]');
-            const pendingCount = data.length;
-            
-            // Update Mobile
-            const notice = document.getElementById('sync-notice');
-            if (pendingCount > 0) {
-                notice.classList.remove('hidden');
-                document.getElementById('mobile-pending-num').innerText = pendingCount;
+            if (currentFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => saveProcess(e.target.result.split(',')[1]);
+                reader.readAsDataURL(currentFile);
             } else {
-                notice.classList.add('hidden');
+                saveProcess();
             }
-
-            // Update PC Dashboard
-            document.getElementById('pc-pending-count').innerText = pendingCount;
-            document.getElementById('total-records').innerText = 0; // Thay bằng fetch từ Drive/Firebase nếu có
-            
-            const table = document.getElementById('dashboard-table');
-            const cats = Object.values(checklists).length;
-            const completedCats = new Set(data.map(d => d.category)).size;
-            document.getElementById('completion-rate').innerText = Math.round((completedCats/6)*100) + "%";
-
-            // Render table mock
-            table.innerHTML = Object.keys(checklists).map(key => {
-                const catName = document.querySelector(`#category option[value="${key}"]`).text;
-                const isDone = data.some(d => d.category === catName);
-                return `
-                    <tr class="border-b hover:bg-slate-50 transition">
-                        <td class="py-4 font-semibold">${catName}</td>
-                        <td class="py-4 text-center">
-                            <span class="px-2 py-1 rounded text-[10px] font-bold ${isDone ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-400'}">
-                                ${isDone ? 'ĐÃ KHẢO SÁT' : 'CHƯA CÓ DỮ LIỆU'}
-                            </span>
-                        </td>
-                        <td class="py-4 text-slate-500 italic">${data.find(d => d.category === catName)?.notes || '---'}</td>
-                    </tr>
-                `;
-            }).join('');
         }
 
-        window.addEventListener('online', syncData);
-        document.getElementById('fileInput').onchange = e => {
-            document.getElementById('fileName').innerText = "Đã chọn: " + e.target.files[0].name;
-        };
+        function renderHistory() {
+            const history = JSON.parse(localStorage.getItem('vdc_history_v1.4') || '[]');
+            const container = document.getElementById('history-list');
+            if (history.length === 0) {
+                container.innerHTML = `<p class="text-center text-slate-400 py-10">Chưa có dữ liệu khảo sát nào.</p>`;
+                return;
+            }
+            container.innerHTML = history.map(item => `
+                <div class="bg-white p-4 rounded-xl shadow-sm border-l-4 border-blue-600">
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-[10px] font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded">${item.category}</span>
+                        <span class="text-[10px] text-slate-400">${item.timestamp}</span>
+                    </div>
+                    <p class="text-sm text-slate-700 font-medium mb-2">${item.notes || 'Không có mô tả'}</p>
+                    ${item.data ? `<div class="text-[10px] text-green-600 font-bold">● Có hình ảnh đính kèm</div>` : ''}
+                </div>
+            `).join('');
+        }
 
         // Init
         updateChecklist();
-        updateUI();
     </script>
 </body>
 </html>
